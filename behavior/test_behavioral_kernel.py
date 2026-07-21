@@ -27,7 +27,7 @@ def test_owner_first_positive_trace_passes():
             {"type": "positive_proof"},
             {"type": "claim", "maturity": "live_verified", "proved_maturity": "live_verified"},
             {"type": "message", "primary_bullets": 3},
-            {"type": "verified_outcome"},
+            {"type": "verified_outcome", "result": "success"},
             {"type": "terminal_receipt"},
         ],
     }
@@ -280,6 +280,31 @@ def test_terminal_receipt_with_failed_verified_outcome_fails():
     trace = {
         "trace_id": "negative-terminal-with-failed-outcome",
         "events": [
+            {"type": "verified_outcome", "result": "failed"},
+            {"type": "terminal_receipt"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-08" in rules
+
+
+def test_terminal_receipt_with_missing_result_verified_outcome_fails():
+    trace = {
+        "trace_id": "negative-terminal-with-missing-result-outcome",
+        "events": [
+            {"type": "verified_outcome"},
+            {"type": "terminal_receipt"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-08" in rules
+
+
+def test_terminal_receipt_with_missing_result_alongside_failed_outcome_fails():
+    trace = {
+        "trace_id": "negative-terminal-with-missing-and-failed-outcomes",
+        "events": [
+            {"type": "verified_outcome"},
             {"type": "verified_outcome", "result": "failed"},
             {"type": "terminal_receipt"},
         ],

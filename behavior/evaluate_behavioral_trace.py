@@ -79,7 +79,7 @@ def evaluate(trace: dict) -> dict:
 
     terminal_receipts = [e for e in events if e.get("type") == "terminal_receipt"]
     successful_outcome_present = any(
-        e.get("type") == "verified_outcome" and e.get("result", "success") == "success"
+        e.get("type") == "verified_outcome" and e.get("result") == "success"
         for e in events
     )
     if terminal_receipts and not successful_outcome_present:
