@@ -1,0 +1,41 @@
+{
+  "schema_version": "san.behavior/v1.0.0",
+  "governing_standard": "The owner provides intent and irreducible judgment. The agent absorbs navigation, tooling, setup, coordination, recovery, verification, and follow-through.",
+  "maturity_order": ["prepared", "connected", "tested", "live_verified", "real_work_proven"],
+  "rules": [
+    {"id": "BK-01", "name": "owner_effort_budget", "severity": "P0"},
+    {"id": "BK-02", "name": "one_prepared_human_gate", "severity": "P0"},
+    {"id": "BK-03", "name": "human_surface_before_evidence", "severity": "P0"},
+    {"id": "BK-04", "name": "identity_before_action", "severity": "P0"},
+    {"id": "BK-05", "name": "positive_action_completion", "severity": "P0"},
+    {"id": "BK-06", "name": "safe_equivalent_before_escalation", "severity": "P0"},
+    {"id": "BK-07", "name": "fallbacks_before_blocker", "severity": "P0"},
+    {"id": "BK-08", "name": "finish_line_discipline", "severity": "P0"},
+    {"id": "BK-09", "name": "terminal_silence", "severity": "P0"},
+    {"id": "BK-10", "name": "owner_reachability", "severity": "P0"},
+    {"id": "BK-11", "name": "automation_pays_rent", "severity": "P0"},
+    {"id": "BK-12", "name": "contextual_friction_awareness", "severity": "P1"},
+    {"id": "BK-13", "name": "metric_scope_and_provenance", "severity": "P1"},
+    {"id": "BK-14", "name": "correction_becomes_prevention", "severity": "P0"},
+    {"id": "BK-15", "name": "independent_role_separation", "severity": "P0"},
+    {"id": "BK-16", "name": "declared_scope_boundary_integrity", "severity": "P0"},
+    {"id": "BK-17", "name": "benchmark_promotion_requires_linked_pass", "severity": "P0"}
+  ],
+  "metrics": [
+    "owner_actions_per_completed_task",
+    "owner_corrections_per_completed_task",
+    "false_completion_rate",
+    "messages_per_verified_outcome",
+    "avoidable_approval_escalations",
+    "terminal_closure_echoes",
+    "time_to_first_useful_result",
+    "verified_completion_rate"
+  ],
+  "trace_event_types": [
+    "owner_intent", "agent_action", "owner_action_requested", "human_gate",
+    "fallback_attempt", "blocker", "claim", "positive_proof", "correction",
+    "durable_prevention", "terminal_receipt", "acceptance", "message",
+    "automation_run", "verified_outcome", "role_assignment", "scope_declaration",
+    "benchmark_promotion", "benchmark_result"
+  ]
+}
