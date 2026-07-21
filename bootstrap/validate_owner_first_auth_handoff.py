@@ -25,6 +25,15 @@ REQUIRED_CHECKS = {
     "real_authenticated_action_verified",
     "scope_revocation_recovery_recorded",
 }
+REQUIRED_FORBIDDEN_SHARED_MATERIAL = {
+    "password",
+    "api_token",
+    "private_key",
+    "recovery_code",
+    "oauth_device_code",
+    "cookie",
+    "signed_live_browser_url",
+}
 
 
 def validate(path: Path) -> dict[str, object]:
@@ -46,7 +55,7 @@ def validate(path: Path) -> dict[str, object]:
         )
 
     forbidden = set(data.get("forbidden_shared_channel_material", []))
-    if not {"password", "api_token", "private_key", "recovery_code"} <= forbidden:
+    if not REQUIRED_FORBIDDEN_SHARED_MATERIAL <= forbidden:
         raise ValueError("shared-channel secret prohibition is incomplete")
 
     states = data.get("completion_states", [])

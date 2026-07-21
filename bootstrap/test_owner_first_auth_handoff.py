@@ -41,3 +41,23 @@ def test_false_secret_safety_check_fails(tmp_path):
     data["acceptance_checks"]["no_secret_in_shared_surfaces"] = False
     with pytest.raises(ValueError, match="invalid acceptance checks"):
         validator.validate(write_fixture(tmp_path, data))
+
+
+@pytest.mark.parametrize(
+    "forbidden_material",
+    [
+        "password",
+        "api_token",
+        "private_key",
+        "recovery_code",
+        "oauth_device_code",
+        "cookie",
+        "signed_live_browser_url",
+    ],
+)
+def test_missing_required_forbidden_shared_material_fails(tmp_path, forbidden_material):
+    data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    data["forbidden_shared_channel_material"].remove(forbidden_material)
+
+    with pytest.raises(ValueError, match="shared-channel secret prohibition is incomplete"):
+        validator.validate(write_fixture(tmp_path, data))
