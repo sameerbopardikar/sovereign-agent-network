@@ -136,6 +136,93 @@ def test_real_work_proven_claim_with_successful_linked_proof_passes():
     assert "BK-05" not in rules
 
 
+def test_real_work_proven_claim_with_nogo_linked_proof_fails():
+    trace = {
+        "trace_id": "negative-nogo-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "no-go"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_real_work_proven_claim_with_abstain_linked_proof_fails():
+    trace = {
+        "trace_id": "negative-abstain-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "abstain"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_real_work_proven_claim_with_unknown_linked_proof_result_fails():
+    trace = {
+        "trace_id": "negative-unknown-result-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "forged_unknown_result"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_real_work_proven_claim_with_missing_linked_proof_result_fails():
+    trace = {
+        "trace_id": "negative-missing-result-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_real_work_proven_claim_with_duplicate_conflicting_proof_ids_fails():
+    trace = {
+        "trace_id": "negative-duplicate-proof-ids",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "success"},
+            {"type": "positive_proof", "event_id": "p1", "result": "failed"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+
 def test_forged_unknown_maturity_value_fails():
     trace = {
         "trace_id": "negative-forged-maturity",
@@ -187,6 +274,30 @@ def test_terminal_receipt_with_no_verified_outcome_fails():
     }
     rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
     assert "BK-08" in rules
+
+
+def test_terminal_receipt_with_failed_verified_outcome_fails():
+    trace = {
+        "trace_id": "negative-terminal-with-failed-outcome",
+        "events": [
+            {"type": "verified_outcome", "result": "failed"},
+            {"type": "terminal_receipt"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-08" in rules
+
+
+def test_terminal_receipt_with_successful_verified_outcome_passes():
+    trace = {
+        "trace_id": "positive-terminal-with-successful-outcome",
+        "events": [
+            {"type": "verified_outcome", "result": "success"},
+            {"type": "terminal_receipt"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-08" not in rules
 
 
 def test_owner_unreachable_without_checkpoint_fails():

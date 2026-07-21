@@ -33,19 +33,26 @@ def evaluate(trace: dict) -> dict:
                 add("BK-05", f"Claimed {claimed} but evidence supports only {proved}")
             elif claimed == "real_work_proven":
                 claim_id = event.get("proof_event_id")
-                linked_proof = None
+                linked_proofs = []
                 if claim_id is not None:
-                    linked_proof = next(
-                        (
-                            e for e in events
-                            if e.get("type") == "positive_proof" and e.get("event_id") == claim_id
-                        ),
-                        None,
-                    )
-                if linked_proof is None:
+                    linked_proofs = [
+                        e for e in events
+                        if e.get("type") == "positive_proof" and e.get("event_id") == claim_id
+                    ]
+                if not linked_proofs:
                     add("BK-05", "real_work_proven claim has no linked positive_proof event")
-                elif linked_proof.get("result") == "failed":
-                    add("BK-05", "real_work_proven claim's linked proof result is 'failed'")
+                elif len(linked_proofs) > 1:
+                    add(
+                        "BK-05",
+                        f"real_work_proven claim's proof_event_id '{claim_id}' matches "
+                        f"{len(linked_proofs)} positive_proof events with duplicate/conflicting IDs",
+                    )
+                elif linked_proofs[0].get("result") != "success":
+                    add(
+                        "BK-05",
+                        "real_work_proven claim's linked proof does not have an explicit "
+                        f"successful result (result={linked_proofs[0].get('result')!r})",
+                    )
         if event.get("type") == "blocker" and event.get("fallback_count", 0) < event.get("fallback_required", 1):
             add("BK-07", "Blocker surfaced before required fallback depth")
         if event.get("type") == "human_gate" and event.get("trigger") == "avoidable_command_syntax":
@@ -71,9 +78,16 @@ def evaluate(trace: dict) -> dict:
             add("BK-12", "High-friction context action proceeded without acknowledging the friction")
 
     terminal_receipts = [e for e in events if e.get("type") == "terminal_receipt"]
-    verified_outcome_present = any(e.get("type") == "verified_outcome" for e in events)
-    if terminal_receipts and not verified_outcome_present:
-        add("BK-08", "Terminal receipt emitted with no verified_outcome event in the trace")
+    successful_outcome_present = any(
+        e.get("type") == "verified_outcome" and e.get("result", "success") == "success"
+        for e in events
+    )
+    if terminal_receipts and not successful_outcome_present:
+        add(
+            "BK-08",
+            "Terminal receipt emitted with no successful verified_outcome event in the trace "
+            "(missing, or all verified_outcome events report a non-success result)",
+        )
 
     corrections = [e for e in events if e.get("type") == "correction"]
     preventions = {e.get("correction_id") for e in events if e.get("type") == "durable_prevention"}
