@@ -54,7 +54,15 @@ def validate(path: Path) -> dict[str, object]:
             f"invalid acceptance checks: missing={sorted(missing_checks)} false={false_checks}"
         )
 
-    forbidden = set(data.get("forbidden_shared_channel_material", []))
+    forbidden_raw = data.get("forbidden_shared_channel_material", [])
+    if not isinstance(forbidden_raw, list):
+        raise ValueError(
+            "forbidden_shared_channel_material must be an array, "
+            f"got {type(forbidden_raw).__name__}"
+        )
+    if not all(isinstance(item, str) for item in forbidden_raw):
+        raise ValueError("forbidden_shared_channel_material must contain only strings")
+    forbidden = set(forbidden_raw)
     if not REQUIRED_FORBIDDEN_SHARED_MATERIAL <= forbidden:
         raise ValueError("shared-channel secret prohibition is incomplete")
 

@@ -61,3 +61,23 @@ def test_missing_required_forbidden_shared_material_fails(tmp_path, forbidden_ma
 
     with pytest.raises(ValueError, match="shared-channel secret prohibition is incomplete"):
         validator.validate(write_fixture(tmp_path, data))
+
+
+def test_forbidden_material_as_object_keyed_by_names_fails(tmp_path):
+    """A JSON object keyed by the forbidden names (instead of an array) must be rejected,
+    not silently accepted via set(dict) treating keys as members."""
+    data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    data["forbidden_shared_channel_material"] = {
+        name: True for name in data["forbidden_shared_channel_material"]
+    }
+    with pytest.raises(ValueError, match="must be an array"):
+        validator.validate(write_fixture(tmp_path, data))
+
+
+def test_forbidden_material_with_non_string_entries_fails(tmp_path):
+    data = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    data["forbidden_shared_channel_material"] = list(
+        data["forbidden_shared_channel_material"]
+    ) + [123]
+    with pytest.raises(ValueError, match="must contain only strings"):
+        validator.validate(write_fixture(tmp_path, data))

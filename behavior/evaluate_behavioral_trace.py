@@ -25,8 +25,27 @@ def evaluate(trace: dict) -> dict:
         if event.get("type") == "claim":
             claimed = event.get("maturity")
             proved = event.get("proved_maturity", "prepared")
-            if claimed in MATURITY and proved in MATURITY and MATURITY.index(claimed) > MATURITY.index(proved):
+            if claimed is not None and claimed not in MATURITY:
+                add("BK-05", f"Claimed maturity '{claimed}' is not a canonical maturity value")
+            elif proved not in MATURITY:
+                add("BK-05", f"Proved maturity '{proved}' is not a canonical maturity value")
+            elif claimed in MATURITY and MATURITY.index(claimed) > MATURITY.index(proved):
                 add("BK-05", f"Claimed {claimed} but evidence supports only {proved}")
+            elif claimed == "real_work_proven":
+                claim_id = event.get("proof_event_id")
+                linked_proof = None
+                if claim_id is not None:
+                    linked_proof = next(
+                        (
+                            e for e in events
+                            if e.get("type") == "positive_proof" and e.get("event_id") == claim_id
+                        ),
+                        None,
+                    )
+                if linked_proof is None:
+                    add("BK-05", "real_work_proven claim has no linked positive_proof event")
+                elif linked_proof.get("result") == "failed":
+                    add("BK-05", "real_work_proven claim's linked proof result is 'failed'")
         if event.get("type") == "blocker" and event.get("fallback_count", 0) < event.get("fallback_required", 1):
             add("BK-07", "Blocker surfaced before required fallback depth")
         if event.get("type") == "human_gate" and event.get("trigger") == "avoidable_command_syntax":
@@ -44,6 +63,17 @@ def evaluate(trace: dict) -> dict:
             add("BK-03", "Primary human surface exceeded the default five-bullet budget")
         if event.get("type") == "claim" and event.get("metric") and not event.get("metric_scope"):
             add("BK-13", "Metric claim omitted source/environment scope")
+        if event.get("type") == "terminal_receipt" and event.get("scope_expanded_after_lock", False):
+            add("BK-08", "Finish-line scope expanded after terminal receipt was locked")
+        if event.get("type") == "owner_action_requested" and event.get("owner_unreachable", False) and not event.get("checkpoint_preserved", False):
+            add("BK-10", "Owner request issued while owner unreachable without a preserved checkpoint")
+        if event.get("type") == "agent_action" and event.get("high_friction_context", False) and not event.get("friction_acknowledged", False):
+            add("BK-12", "High-friction context action proceeded without acknowledging the friction")
+
+    terminal_receipts = [e for e in events if e.get("type") == "terminal_receipt"]
+    verified_outcome_present = any(e.get("type") == "verified_outcome" for e in events)
+    if terminal_receipts and not verified_outcome_present:
+        add("BK-08", "Terminal receipt emitted with no verified_outcome event in the trace")
 
     corrections = [e for e in events if e.get("type") == "correction"]
     preventions = {e.get("correction_id") for e in events if e.get("type") == "durable_prevention"}

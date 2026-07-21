@@ -88,3 +88,170 @@ def test_correction_with_durable_prevention_passes_that_rule():
     }
     rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
     assert "BK-14" not in rules
+
+
+def test_real_work_proven_claim_without_linked_proof_fails():
+    trace = {
+        "trace_id": "negative-unlinked-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "success"},
+            {"type": "claim", "maturity": "real_work_proven", "proved_maturity": "real_work_proven"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_real_work_proven_claim_with_failed_linked_proof_fails():
+    trace = {
+        "trace_id": "negative-failed-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "failed"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_real_work_proven_claim_with_successful_linked_proof_passes():
+    trace = {
+        "trace_id": "positive-linked-proof",
+        "events": [
+            {"type": "positive_proof", "event_id": "p1", "result": "success"},
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "real_work_proven",
+                "proof_event_id": "p1",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" not in rules
+
+
+def test_forged_unknown_maturity_value_fails():
+    trace = {
+        "trace_id": "negative-forged-maturity",
+        "events": [
+            {
+                "type": "claim",
+                "maturity": "real_work_proven",
+                "proved_maturity": "forged_unknown_state",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_forged_unknown_claimed_maturity_value_fails():
+    trace = {
+        "trace_id": "negative-forged-claim",
+        "events": [
+            {
+                "type": "claim",
+                "maturity": "forged_unknown_state",
+                "proved_maturity": "prepared",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-05" in rules
+
+
+def test_finish_line_scope_expansion_after_terminal_lock_fails():
+    trace = {
+        "trace_id": "negative-scope-expansion",
+        "events": [
+            {"type": "verified_outcome"},
+            {"type": "terminal_receipt", "scope_expanded_after_lock": True},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-08" in rules
+
+
+def test_terminal_receipt_with_no_verified_outcome_fails():
+    trace = {
+        "trace_id": "negative-unverified-terminal",
+        "events": [
+            {"type": "terminal_receipt"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-08" in rules
+
+
+def test_owner_unreachable_without_checkpoint_fails():
+    trace = {
+        "trace_id": "negative-owner-unreachable",
+        "events": [
+            {
+                "type": "owner_action_requested",
+                "agent_executable": False,
+                "prepared_exact_gate": True,
+                "owner_unreachable": True,
+                "checkpoint_preserved": False,
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-10" in rules
+
+
+def test_owner_unreachable_with_checkpoint_preserved_passes():
+    trace = {
+        "trace_id": "positive-owner-unreachable-checkpointed",
+        "events": [
+            {
+                "type": "owner_action_requested",
+                "agent_executable": False,
+                "prepared_exact_gate": True,
+                "owner_unreachable": True,
+                "checkpoint_preserved": True,
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-10" not in rules
+
+
+def test_high_friction_action_without_acknowledgment_fails():
+    trace = {
+        "trace_id": "negative-friction-unacknowledged",
+        "events": [
+            {
+                "type": "agent_action",
+                "identity_strength_used": 3,
+                "strongest_identity_strength": 3,
+                "high_friction_context": True,
+                "friction_acknowledged": False,
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-12" in rules
+
+
+def test_high_friction_action_with_acknowledgment_passes():
+    trace = {
+        "trace_id": "positive-friction-acknowledged",
+        "events": [
+            {
+                "type": "agent_action",
+                "identity_strength_used": 3,
+                "strongest_identity_strength": 3,
+                "high_friction_context": True,
+                "friction_acknowledged": True,
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-12" not in rules
