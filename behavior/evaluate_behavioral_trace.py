@@ -77,19 +77,69 @@ def evaluate(trace: dict) -> dict:
         if event.get("type") == "agent_action" and event.get("high_friction_context", False) and not event.get("friction_acknowledged", False):
             add("BK-12", "High-friction context action proceeded without acknowledging the friction")
         if event.get("type") == "role_assignment":
-            executor = event.get("executor")
-            for role_name in ("reviewer", "verifier", "merger"):
-                role_value = event.get(role_name)
-                if executor is not None and role_value is not None and executor == role_value:
-                    add(
-                        "BK-15",
-                        f"Executor identity '{executor}' collides with {role_name} identity "
-                        "(no independent role separation before merge/promotion)",
-                    )
+            def _canon_identity(raw):
+                if not isinstance(raw, str):
+                    return None
+                v = raw.strip().casefold()
+                return v or None
+
+            roles = {
+                role_name: (event.get(role_name), _canon_identity(event.get(role_name)))
+                for role_name in ("executor", "reviewer", "verifier", "merger")
+            }
+            missing_roles = [name for name, (raw, canon) in roles.items() if canon is None]
+            if missing_roles:
+                add(
+                    "BK-15",
+                    "role_assignment is missing a complete independent identity for: "
+                    f"{', '.join(sorted(missing_roles))}",
+                )
+            else:
+                canon_to_roles: dict[str, list[str]] = {}
+                for name, (_, canon) in roles.items():
+                    canon_to_roles.setdefault(canon, []).append(name)
+                for canon, names in canon_to_roles.items():
+                    if len(names) > 1:
+                        add(
+                            "BK-15",
+                            f"Identity '{canon}' is reused across independent roles "
+                            f"{', '.join(sorted(names))} (no independent role separation "
+                            "before merge/promotion, including case/alias-normalized collisions)",
+                        )
         if event.get("type") == "scope_declaration":
-            allowed = [p for p in event.get("allowed_paths", []) if isinstance(p, str)]
-            excluded = [p for p in event.get("excluded_paths", []) if isinstance(p, str)]
-            changed = [p for p in event.get("changed_paths", []) if isinstance(p, str)]
+            def _normalize_path_list(key: str) -> tuple[list[str], bool]:
+                raw_list = event.get(key, [])
+                if not isinstance(raw_list, list):
+                    return [], True
+                cleaned: list[str] = []
+                malformed = False
+                for p in raw_list:
+                    if not isinstance(p, str) or not p.strip():
+                        malformed = True
+                        continue
+                    normalized = p.strip().replace("\\", "/")
+                    if normalized.startswith("/") or normalized.startswith("~"):
+                        malformed = True
+                        continue
+                    segments = normalized.split("/")
+                    if any(seg in ("..", ".") for seg in segments):
+                        malformed = True
+                        continue
+                    cleaned.append(normalized.rstrip("/"))
+                return cleaned, malformed
+
+            allowed, allowed_malformed = _normalize_path_list("allowed_paths")
+            excluded, excluded_malformed = _normalize_path_list("excluded_paths")
+            changed, changed_malformed = _normalize_path_list("changed_paths")
+
+            if allowed_malformed:
+                add("BK-16", "allowed_paths contains a malformed, empty, absolute, or traversal ('..') entry")
+            if excluded_malformed:
+                add("BK-16", "excluded_paths contains a malformed, empty, absolute, or traversal ('..') entry")
+            if changed_malformed:
+                add("BK-16", "changed_paths contains a malformed, empty, absolute, or traversal ('..') entry")
+            if not changed:
+                add("BK-16", "scope_declaration omits changed_paths (no authoritative changed-path coverage)")
 
             def _under(path: str, prefix: str) -> bool:
                 p = prefix.rstrip("/*")
@@ -114,24 +164,36 @@ def evaluate(trace: dict) -> dict:
                     )
         if event.get("type") == "benchmark_promotion":
             benchmark_id = event.get("benchmark_id")
-            linked_benchmarks = [
-                e for e in events
-                if e.get("type") == "benchmark_result" and e.get("benchmark_id") == benchmark_id
-            ]
-            if not linked_benchmarks:
-                add("BK-17", "benchmark_promotion has no linked benchmark_result event")
-            elif len(linked_benchmarks) > 1:
-                add(
-                    "BK-17",
-                    f"benchmark_promotion's benchmark_id '{benchmark_id}' matches "
-                    f"{len(linked_benchmarks)} benchmark_result events with duplicate/conflicting IDs",
-                )
-            elif linked_benchmarks[0].get("result") not in {"pass", "success"}:
-                add(
-                    "BK-17",
-                    "benchmark_promotion's linked benchmark does not have an explicit "
-                    f"passing result (result={linked_benchmarks[0].get('result')!r})",
-                )
+            promotion_index = events.index(event)
+            if not isinstance(benchmark_id, str) or not benchmark_id.strip():
+                add("BK-17", "benchmark_promotion has a missing/empty/non-string benchmark_id")
+            else:
+                linked_benchmarks = [
+                    (idx, e) for idx, e in enumerate(events)
+                    if e.get("type") == "benchmark_result" and e.get("benchmark_id") == benchmark_id
+                ]
+                if not linked_benchmarks:
+                    add("BK-17", "benchmark_promotion has no linked benchmark_result event")
+                elif len(linked_benchmarks) > 1:
+                    add(
+                        "BK-17",
+                        f"benchmark_promotion's benchmark_id '{benchmark_id}' matches "
+                        f"{len(linked_benchmarks)} benchmark_result events with duplicate/conflicting IDs",
+                    )
+                else:
+                    result_index, result_event = linked_benchmarks[0]
+                    if result_index > promotion_index:
+                        add(
+                            "BK-17",
+                            f"benchmark_promotion for '{benchmark_id}' occurs before its linked "
+                            "benchmark_result event (promotion cannot precede its own proof)",
+                        )
+                    elif result_event.get("result") not in {"pass", "success"}:
+                        add(
+                            "BK-17",
+                            "benchmark_promotion's linked benchmark does not have an explicit "
+                            f"passing result (result={result_event.get('result')!r})",
+                        )
 
     terminal_receipts = [e for e in events if e.get("type") == "terminal_receipt"]
     successful_outcome_present = any(

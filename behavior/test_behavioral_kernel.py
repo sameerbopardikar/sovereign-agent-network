@@ -554,3 +554,108 @@ def test_benchmark_promotion_with_passing_linked_result_passes():
     }
     rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
     assert "BK-17" not in rules
+
+
+def test_role_assignment_case_alias_collision_fails():
+    trace = {
+        "trace_id": "negative-executor-reviewer-case-alias-collision",
+        "events": [
+            {
+                "type": "role_assignment",
+                "executor": "agent:expert",
+                "reviewer": "AGENT:EXPERT",
+                "verifier": "agent:nemertes",
+                "merger": "github:aakashsrinivasan",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-15" in rules
+
+
+def test_role_assignment_missing_independent_role_fails():
+    trace = {
+        "trace_id": "negative-role-assignment-missing-verifier",
+        "events": [
+            {
+                "type": "role_assignment",
+                "executor": "agent:expert",
+                "reviewer": "agent:gideon",
+                "merger": "github:aakashsrinivasan",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-15" in rules
+
+
+def test_scope_declaration_traversal_path_fails():
+    trace = {
+        "trace_id": "negative-scope-traversal",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["kernel"],
+                "changed_paths": ["capabilities/example/../../kernel/schemas/work-object.schema.json"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" in rules
+
+
+def test_scope_declaration_missing_changed_paths_fails():
+    trace = {
+        "trace_id": "negative-scope-missing-changed-paths",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["kernel"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" in rules
+
+
+def test_scope_declaration_malformed_excluded_path_entry_fails():
+    trace = {
+        "trace_id": "negative-scope-malformed-excluded-entry",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["kernel", 42, ""],
+                "changed_paths": ["capabilities/example/README.md"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" in rules
+
+
+def test_benchmark_promotion_missing_benchmark_id_fails():
+    trace = {
+        "trace_id": "negative-benchmark-missing-id",
+        "events": [
+            {"type": "benchmark_result", "benchmark_id": "b1", "result": "pass"},
+            {"type": "benchmark_promotion"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-17" in rules
+
+
+def test_benchmark_promotion_before_its_result_fails():
+    trace = {
+        "trace_id": "negative-benchmark-promotion-before-result",
+        "events": [
+            {"type": "benchmark_promotion", "benchmark_id": "b1"},
+            {"type": "benchmark_result", "benchmark_id": "b1", "result": "pass"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-17" in rules
+
