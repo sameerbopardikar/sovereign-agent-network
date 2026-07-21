@@ -1,0 +1,58 @@
+{
+  "protocol": "owner-first-auth-handoff",
+  "version": "1.0.0",
+  "objective": "Minimize owner work while preserving scoped, revocable, recoverable secret handling.",
+  "required_stages": [
+    "environment_discovery",
+    "agent_side_preparation",
+    "approved_secret_store_selection",
+    "direct_handoff_creation",
+    "irreducible_human_gate_only",
+    "agent_side_completion",
+    "runtime_secret_retrieval",
+    "live_capability_verification",
+    "secret_free_receipt"
+  ],
+  "allowed_human_gates": [
+    "captcha",
+    "passkey",
+    "mfa_or_device_approval",
+    "explicit_provider_consent",
+    "identity_verification",
+    "payment_approval",
+    "owner_only_password_manager_invitation_acceptance"
+  ],
+  "forbidden_shared_channel_material": [
+    "password",
+    "api_token",
+    "oauth_device_code",
+    "recovery_code",
+    "private_key",
+    "cookie",
+    "signed_live_browser_url"
+  ],
+  "forbidden_owner_work_when_agent_capable": [
+    "ssh_or_vps_terminal_commands",
+    "provider_dashboard_navigation",
+    "oauth_app_configuration",
+    "scope_selection",
+    "callback_setup",
+    "token_copying",
+    "secret_store_plumbing",
+    "verification_email_link_hunting"
+  ],
+  "completion_states": [
+    "prepared",
+    "human_gate_waiting",
+    "authenticated",
+    "live_verified"
+  ],
+  "acceptance_checks": {
+    "direct_exact_gate_handoff": true,
+    "agent_auto_resume": true,
+    "no_secret_in_shared_surfaces": true,
+    "runtime_secret_retrieval_verified": true,
+    "real_authenticated_action_verified": true,
+    "scope_revocation_recovery_recorded": true
+  }
+}
