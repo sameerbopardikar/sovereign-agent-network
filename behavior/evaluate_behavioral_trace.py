@@ -76,6 +76,62 @@ def evaluate(trace: dict) -> dict:
             add("BK-10", "Owner request issued while owner unreachable without a preserved checkpoint")
         if event.get("type") == "agent_action" and event.get("high_friction_context", False) and not event.get("friction_acknowledged", False):
             add("BK-12", "High-friction context action proceeded without acknowledging the friction")
+        if event.get("type") == "role_assignment":
+            executor = event.get("executor")
+            for role_name in ("reviewer", "verifier", "merger"):
+                role_value = event.get(role_name)
+                if executor is not None and role_value is not None and executor == role_value:
+                    add(
+                        "BK-15",
+                        f"Executor identity '{executor}' collides with {role_name} identity "
+                        "(no independent role separation before merge/promotion)",
+                    )
+        if event.get("type") == "scope_declaration":
+            allowed = [p for p in event.get("allowed_paths", []) if isinstance(p, str)]
+            excluded = [p for p in event.get("excluded_paths", []) if isinstance(p, str)]
+            changed = [p for p in event.get("changed_paths", []) if isinstance(p, str)]
+
+            def _under(path: str, prefix: str) -> bool:
+                p = prefix.rstrip("/*")
+                return path == p or path.startswith(p + "/")
+
+            for excl in excluded:
+                if any(_under(excl, allow) for allow in allowed):
+                    add(
+                        "BK-16",
+                        f"Excluded path '{excl}' overlaps an allowed/included scope prefix",
+                    )
+            for changed_path in changed:
+                if any(_under(changed_path, excl) for excl in excluded):
+                    add(
+                        "BK-16",
+                        f"Changed path '{changed_path}' falls inside an excluded scope boundary",
+                    )
+                elif allowed and not any(_under(changed_path, allow) for allow in allowed):
+                    add(
+                        "BK-16",
+                        f"Changed path '{changed_path}' falls outside every declared allowed scope prefix",
+                    )
+        if event.get("type") == "benchmark_promotion":
+            benchmark_id = event.get("benchmark_id")
+            linked_benchmarks = [
+                e for e in events
+                if e.get("type") == "benchmark_result" and e.get("benchmark_id") == benchmark_id
+            ]
+            if not linked_benchmarks:
+                add("BK-17", "benchmark_promotion has no linked benchmark_result event")
+            elif len(linked_benchmarks) > 1:
+                add(
+                    "BK-17",
+                    f"benchmark_promotion's benchmark_id '{benchmark_id}' matches "
+                    f"{len(linked_benchmarks)} benchmark_result events with duplicate/conflicting IDs",
+                )
+            elif linked_benchmarks[0].get("result") not in {"pass", "success"}:
+                add(
+                    "BK-17",
+                    "benchmark_promotion's linked benchmark does not have an explicit "
+                    f"passing result (result={linked_benchmarks[0].get('result')!r})",
+                )
 
     terminal_receipts = [e for e in events if e.get("type") == "terminal_receipt"]
     successful_outcome_present = any(

@@ -12,8 +12,8 @@ SPEC.loader.exec_module(MOD)
 def test_contract_has_unique_complete_rule_set():
     contract = json.loads((ROOT / "behavioral-kernel.json").read_text())
     ids = [rule["id"] for rule in contract["rules"]]
-    assert len(ids) == len(set(ids)) == 14
-    assert ids == [f"BK-{n:02d}" for n in range(1, 15)]
+    assert len(ids) == len(set(ids)) == 17
+    assert ids == [f"BK-{n:02d}" for n in range(1, 18)]
     assert contract["maturity_order"] == MOD.MATURITY
 
 
@@ -391,3 +391,166 @@ def test_high_friction_action_with_acknowledgment_passes():
     }
     rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
     assert "BK-12" not in rules
+
+
+def test_executor_reviewer_identity_collision_fails():
+    trace = {
+        "trace_id": "negative-executor-reviewer-collision",
+        "events": [
+            {
+                "type": "role_assignment",
+                "executor": "agent:expert",
+                "reviewer": "agent:expert",
+                "verifier": "agent:nemertes",
+                "merger": "github:aakashsrinivasan",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-15" in rules
+
+
+def test_executor_merger_identity_collision_fails():
+    trace = {
+        "trace_id": "negative-executor-merger-collision",
+        "events": [
+            {
+                "type": "role_assignment",
+                "executor": "agent:expert",
+                "reviewer": "agent:gideon",
+                "verifier": "agent:nemertes",
+                "merger": "agent:expert",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-15" in rules
+
+
+def test_independent_roles_pass():
+    trace = {
+        "trace_id": "positive-independent-roles",
+        "events": [
+            {
+                "type": "role_assignment",
+                "executor": "agent:expert",
+                "reviewer": "agent:gideon",
+                "verifier": "agent:nemertes",
+                "merger": "github:aakashsrinivasan",
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-15" not in rules
+
+
+def test_excluded_path_overlapping_allowed_scope_fails():
+    trace = {
+        "trace_id": "negative-excluded-overlaps-allowed",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["capabilities/example/private"],
+                "changed_paths": ["capabilities/example/README.md"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" in rules
+
+
+def test_changed_path_inside_excluded_scope_fails():
+    trace = {
+        "trace_id": "negative-changed-inside-excluded",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["kernel"],
+                "changed_paths": ["kernel/schemas/work-object.schema.json"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" in rules
+
+
+def test_changed_path_outside_allowed_scope_fails():
+    trace = {
+        "trace_id": "negative-changed-outside-allowed",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["kernel"],
+                "changed_paths": ["receipts/example/build.json"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" in rules
+
+
+def test_changed_path_inside_allowed_and_no_excluded_overlap_passes():
+    trace = {
+        "trace_id": "positive-scope-clean",
+        "events": [
+            {
+                "type": "scope_declaration",
+                "allowed_paths": ["capabilities/example"],
+                "excluded_paths": ["kernel", "corpora", "receipts"],
+                "changed_paths": ["capabilities/example/README.md"],
+            },
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-16" not in rules
+
+
+def test_benchmark_promotion_without_linked_result_fails():
+    trace = {
+        "trace_id": "negative-benchmark-unlinked",
+        "events": [
+            {"type": "benchmark_promotion", "benchmark_id": "b1"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-17" in rules
+
+
+def test_benchmark_promotion_with_failed_linked_result_fails():
+    trace = {
+        "trace_id": "negative-benchmark-failed",
+        "events": [
+            {"type": "benchmark_result", "benchmark_id": "b1", "result": "fail"},
+            {"type": "benchmark_promotion", "benchmark_id": "b1"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-17" in rules
+
+
+def test_benchmark_promotion_with_duplicate_linked_results_fails():
+    trace = {
+        "trace_id": "negative-benchmark-duplicate",
+        "events": [
+            {"type": "benchmark_result", "benchmark_id": "b1", "result": "pass"},
+            {"type": "benchmark_result", "benchmark_id": "b1", "result": "fail"},
+            {"type": "benchmark_promotion", "benchmark_id": "b1"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-17" in rules
+
+
+def test_benchmark_promotion_with_passing_linked_result_passes():
+    trace = {
+        "trace_id": "positive-benchmark-pass",
+        "events": [
+            {"type": "benchmark_result", "benchmark_id": "b1", "result": "pass"},
+            {"type": "benchmark_promotion", "benchmark_id": "b1"},
+        ],
+    }
+    rules = {v["rule"] for v in MOD.evaluate(trace)["violations"]}
+    assert "BK-17" not in rules

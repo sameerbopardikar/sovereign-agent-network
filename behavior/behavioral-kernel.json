@@ -16,7 +16,10 @@
     {"id": "BK-11", "name": "automation_pays_rent", "severity": "P0"},
     {"id": "BK-12", "name": "contextual_friction_awareness", "severity": "P1"},
     {"id": "BK-13", "name": "metric_scope_and_provenance", "severity": "P1"},
-    {"id": "BK-14", "name": "correction_becomes_prevention", "severity": "P0"}
+    {"id": "BK-14", "name": "correction_becomes_prevention", "severity": "P0"},
+    {"id": "BK-15", "name": "independent_role_separation", "severity": "P0"},
+    {"id": "BK-16", "name": "declared_scope_boundary_integrity", "severity": "P0"},
+    {"id": "BK-17", "name": "benchmark_promotion_requires_linked_pass", "severity": "P0"}
   ],
   "metrics": [
     "owner_actions_per_completed_task",
@@ -32,6 +35,7 @@
     "owner_intent", "agent_action", "owner_action_requested", "human_gate",
     "fallback_attempt", "blocker", "claim", "positive_proof", "correction",
     "durable_prevention", "terminal_receipt", "acceptance", "message",
-    "automation_run", "verified_outcome"
+    "automation_run", "verified_outcome", "role_assignment", "scope_declaration",
+    "benchmark_promotion", "benchmark_result"
   ]
 }
